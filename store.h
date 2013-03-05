@@ -1,8 +1,11 @@
-#ifndef DB_H
-#define DB_H
+#ifndef STORE_H
+#define STORE_H
+#include <leveldb/c.h>
 
-void store_peer_list(leveldb_t * db, struct evhttp_request *req, char * info_hash, int numwant, int compact);
-void store_remove_peer(leveldb_t * db, uint32_t client_ip, int client_port, char *  info_hash);
-void store_add_peer(leveldb_t * db, int worth, uint32_t client_ip, int client_port, char *  info_hash);
+
+leveldb_t * store_open(char * name);
+char * store_get(leveldb_t * store, char * key,size_t key_size, size_t *read_len);
+void store_put(leveldb_t * store, char * key, size_t key_size, char * value, size_t value_len);
+void store_delete(leveldb_t * store, char * key, size_t key_size);
 
 #endif

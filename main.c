@@ -35,7 +35,12 @@ void tracker(struct evhttp_request *req, struct config *confg){
 		event=evhttp_find_header(&GET, "event");
 		left = getInt(&GET,"left");
 		//the bt client must have something left and not completed or stopped.
-		if(left && (event && strcmp(event, "completed") == 0 && strcmp(event, "stopped") == 0)){
+		//if the event is empty or non-present,  return a list of peers.
+		if(left &&
+		        (!event ||
+		         event[0] == 0x00 ||
+		                          (strcmp(event, "completed") == 0 &&
+		        		           strcmp(event, "stopped") == 0))){
 			//Build a list of peers for the response:
 			compact = getInt(&GET,"compact");
 			numwant = getInt(&GET,"numwant");

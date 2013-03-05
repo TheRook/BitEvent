@@ -14,6 +14,13 @@ char *model_torrent_peers(int worth, char *  info_hash){
 	return peer_key;
 }
 
+char *model_torrent_header(char *  info_hash){
+	char * header_key;
+	header_key=malloc(MAX_PEER_KEY+1);
+	snprintf(header_key, MAX_PEER_KEY, DB_TORRENT_HEADER"%s", info_hash);
+	return header_key;
+}
+
 char *model_torrent_meta(int worth, char *  info_hash){
 	char * peer_key;
 	peer_key=malloc(MAX_PEER_KEY+1);

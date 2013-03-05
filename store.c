@@ -2,9 +2,9 @@
  * Simplify leveldb access and error reporting.
  */
 
-#include <leveldb/c.h>
-#include "bencode.h"
+
 #include "store.h"
+#include <stdio.h>
 
 leveldb_t * store_open(char * name){
 	leveldb_t *db = 0x00;
@@ -17,37 +17,44 @@ leveldb_t * store_open(char * name){
     db = leveldb_open(options, name, &err);
 
     if (err) {
-      free(err);
-      db = 0x00;
+		fprintf(stderr, "error: %s\n", err);
+		free(err);
+		db = 0x00;
     }
     return db;
 }
 
 char * store_get(leveldb_t * store, char * key,size_t key_size, size_t *read_len){
-	char * err;
-	char * resp = leveldb_get(store,  leveldb_readoptions_create(), key, key_size, &read_len, &err);
+	char * err = 0x00;
+	leveldb_readoptions_t *read_options=leveldb_readoptions_create();
+	char * resp = leveldb_get(store,read_options, key, key_size, read_len, &err);
+	leveldb_readoptions_destroy(read_options);
 	if(err){
-		printf(key_size);
+		fprintf(stderr, "error: %s\n", err);
 		free(err);
 	}
 	return resp;
 }
 
-void store_put(leveldb_t * store, char * key, size_t key_size, char * value, size_t *value_len){
-	char * err;
+void store_put(leveldb_t * store, char * key, size_t key_size, char * value, size_t value_len){
+	char * err=0x00;
+	leveldb_writeoptions_t *write_options=leveldb_writeoptions_create();
 	//char * resp = leveldb_put(store,  leveldb_readoptions_create(), key, key_size, &read_len, &err);
-	leveldb_put(store, leveldb_writeoptions_create(), key, key_size, value, value_len, &err);
+	leveldb_put(store,write_options , key, key_size, value, value_len, &err);
+	leveldb_writeoptions_destroy(write_options);
 	if(err){
-		printf(key_size);
+		fprintf(stderr, "error: %s\n", err);
 		free(err);
 	}
 }
 
 void store_delete(leveldb_t * store, char * key, size_t key_size){
-	char * err;
-	leveldb_delete(store, leveldb_writeoptions_create(), key, key_size, &err);
+	char * err=0x00;
+	leveldb_writeoptions_t *write_options=leveldb_writeoptions_create();
+	leveldb_delete(store, write_options, key, key_size, &err);
+	leveldb_writeoptions_destroy(write_options);
 	if(err){
-		printf(key_size);
+		fprintf(stderr, "error: %s\n", err);
 		free(err);
 	}
 }
