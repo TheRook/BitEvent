@@ -30,7 +30,7 @@ void view_peer_list(struct config * conf, struct evhttp_request *req, char * inf
 	char * resp = NULL;
 	struct evbuffer *resp_buffer;
 	resp_buffer = evbuffer_new();
-	//resp = store_get(store, info_hash, strlen(info_hash), &read_len);
+	resp = store_get(conf->store, info_hash, strlen(info_hash), &read_len);
 	if(!resp || !strlen(resp)){
 		resp = rebuild_response(conf, info_hash, numwant);
 		if(!resp){

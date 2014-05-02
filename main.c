@@ -21,7 +21,7 @@ void tracker(struct evhttp_request *req, struct config *confg){
 		   peer_worth = 0,
 		   uploaded = 0,
 		   downloaded = 0;
-	ev_uint16_t scoket_client_port;
+	ev_uint16_t scoket_client_port=0x00;
 	uint32_t client_ip_addr=0;
 
 	//evhttp is strange sometimes...
@@ -34,8 +34,9 @@ void tracker(struct evhttp_request *req, struct config *confg){
 	if(info_hash){
 		event=evhttp_find_header(&GET, "event");
 		left = getInt(&GET,"left");
-		//the bt client must have something left and not completed or stopped.
-		//if the event is empty or non-present,  return a list of peers.
+		//Only return a peer list if the client needs one.
+		//So the client must have something left to download and not completed or stopped.
+		//If the event is empty or non-present,  return a list of peers.
 		if(left &&
 		        (!event ||
 		         event[0] == 0x00 ||
@@ -51,7 +52,7 @@ void tracker(struct evhttp_request *req, struct config *confg){
 		if(client_ip){
 			client_ip_addr=inet_addr(client_ip);
 		}else{
-			//try a non-standard case
+			//for compatibility, try a non-standard case
 			client_ip = evhttp_find_header(&GET, "ip");
 			if(client_ip){
 				client_ip_addr=inet_addr(client_ip);
@@ -68,13 +69,11 @@ void tracker(struct evhttp_request *req, struct config *confg){
 
 		client_port = getInt(&GET,"port");
 		//port 0 is valid...  and is used by no one, ever.
-		if(client_port > 0 && client_port < 65536){
+		if(client_port > 0 && client_port < 65536 && client_port != 80 && client_port != 443){
 			uploaded = getInt(&GET,"uploaded");
-			downloaded = getInt(&GET,"downloaded");
 			//Process event:
 			if(event){
 				if(strcmp(event, "stopped") == 0 ){
-					control_remove_peer(confg, client_ip_addr, client_port, info_hash);
 					peer_worth=-1;
 				}else if(strcmp(event, "completed") == 0){
 					//This peer has every chunk,  they are valuable
@@ -89,17 +88,17 @@ void tracker(struct evhttp_request *req, struct config *confg){
 			}else{
 				peer_worth=1;
 			}
-			//make sure the peer has uploaded something and is worth something.
-			//otherwise it doesn't help anyone to burn the resources to track them.
-			//When they come back with an announce that is worth while,  then we'll add them to the list.
-			if(peer_worth >= 1 && uploaded > 0){
-				if(uploaded>downloaded){
-					//This peer is healthy! (Or lying...)
-					peer_worth++;
-				}
-				//This peer is worth something,  we should track it.
-				//The recorded peer_worth is from 1-3
+			downloaded = getInt(&GET,"downloaded");
+			if(uploaded>downloaded){
+				//This peer is healthy! (Or lying...)
+				peer_worth++;
+			}
+			if(peer_worth >= 0){
+				//Add the peer to the db, The recorded peer_worth is from 0-3
 				control_add_peer(confg, peer_worth, client_ip_addr, client_port, info_hash);
+			}else if(peer_worth < 0){
+				//This peer is worth less than
+				control_remove_peer(confg, client_ip_addr, client_port, info_hash);
 			}
 		}else{
 			//todo error invalid port

@@ -23,42 +23,53 @@ void control_add_peer(struct config *conf, int worth, uint32_t client_ip, int cl
 	size_t peer_len=0;
 	int meta_len=0;
 	int i;
+	int16_t *meta_list=0x00;
+	char *peer_list=0x00;
 	int16_t cur_timestamp = current_time();
 	char *meta_key = model_torrent_meta(worth, info_hash);
 	char *torrent_key = model_torrent_peers(worth, info_hash);
-	int16_t *meta_list=store_get(conf->store, meta_key, strlen(meta_key), &peer_len);
-	char *peer_list=store_get(conf->store, torrent_key, strlen(torrent_key), &meta_len);
 
-	//cull old records
-	for(i=meta_len/2;i>0;i-=2){
-		//if the peer hasn't announced in min_interval,  then remove it.
-		//todo,  allow for an interval larger than 60 minutes...
-		if(meta_list[i]<cur_timestamp+(conf->min_interval/60)){
-			//The peer at the end of this list has expired...
-			peer_len-PEER_SIZE;
-		}else{
-			break;
+	meta_list = store_get(conf->store, meta_key, strlen(meta_key), &peer_len);
+
+	//do we have a list?
+	if(meta_list){
+		peer_list = store_get(conf->store, torrent_key, strlen(torrent_key), &meta_len);
+		//cull old records
+		for(i=meta_len/2;i>0;i-=2){
+			//if the peer hasn't announced in min_interval,  then remove it.
+			//todo,  allow for an interval larger than 60 minutes...
+			if(meta_list[i]<cur_timestamp+(conf->min_interval/60)){
+				//The peer at the end of this list has expired...
+				peer_len-PEER_SIZE;
+				meta_len-META_SIZE;
+			}else{
+				break;
+			}
 		}
-	}
-	//if we are at the max,  remove the last peer in the list.
-	if(peer_len>MAX_PEER_LEN-8){
-		peer_len=MAX_PEER_LEN-8;
-	}
-	if(meta_len>MAX_META_LEN-2){
-		meta_len=MAX_META_LEN-2;
+		//if we are at the max,  remove the last peer in the list.
+		if(peer_len>MAX_PEER_LEN-PEER_SIZE){
+			peer_len=MAX_PEER_LEN-PEER_SIZE;
+			meta_len=MAX_META_LEN-META_SIZE;
+		}
+
+		//prepend the new client
+		memcpy(new_peer_list,&client_ip,6);
+		memcpy(new_peer_list+6,&client_port,2);
+		//peer_len is no larger than MAX_PEER_LEN-8.
+		memcpy(new_peer_list+8,peer_list,peer_len);
+
+		//prepend the new client's timestamp
+		memcpy(new_meta_list,&cur_timestamp,2);
+		memcpy(new_meta_list+2,meta_list,meta_len);
+		store_put(conf->store, torrent_key, strlen(torrent_key), new_peer_list, peer_len);
+		store_put(conf->store, meta_key, strlen(meta_key), new_meta_list, meta_len);
+	}else{
+		//looks like a new record.
+		store_put(conf->store, torrent_key, strlen(torrent_key), &client_ip, PEER_SIZE);
+		store_put(conf->store, meta_key, strlen(meta_key), &cur_timestamp, META_SIZE);
 	}
 
-	//prepend the new client
-	memcpy(new_peer_list,&client_ip,6);
-	memcpy(new_peer_list+6,&client_port,2);
-	//peer_len is no larger than MAX_PEER_LEN-8.
-	memcpy(new_peer_list+8,peer_list,peer_len);
-	store_put(conf->store, torrent_key, strlen(torrent_key), new_peer_list, strlen(new_peer_list));
 
-	//prepend the new client's timestamp
-	memcpy(new_meta_list,&cur_timestamp,2);
-	memcpy(new_meta_list+2,meta_list,meta_len);
-	store_put(conf->store, meta_key, strlen(meta_key), new_meta_list, strlen(new_meta_list));
 
 	free(meta_key);
 	free(meta_list);

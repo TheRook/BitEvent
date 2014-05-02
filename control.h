@@ -9,6 +9,7 @@
 
 //#define PEER6_SIZE 8 todo
 #define PEER_SIZE 8
+#define META_SIZE 2
 #define MAX_PEER_LEN 200
 #define MAX_META_LEN MAX_PEER_LEN/4
 
